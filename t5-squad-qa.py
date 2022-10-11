@@ -66,7 +66,33 @@ tokenizer = T5Tokenizer.from_pretrained(MODEL_NAME)
 
 # Getting the encodings from our tokenizer for both our training and validation dataset
 # TODO: Add the validation dataset here
-trainingEncodings = tokenizer(trainingQuestions, trainingContexts, truncation=True, padding=True)
+sourceEncodings = tokenizer(
+                    trainingQuestions, 
+                    trainingContexts,  
+                    padding="max_length",
+                    max_length=512,
+                    truncation=True,
+                    return_attention_mask=True,
+                    add_special_tokens=True,
+                    return_tensors="pt",
+                  )
+
+def getOnlyText(answers):
+    trainingAnswerTexts = []
+    for answer in answers:
+        trainingAnswerTexts.append(answer['text'])
+    return trainingAnswerTexts
+
+
+answerEncodings = tokenizer(
+                    getOnlyText(trainingAnswers),
+                    padding="max_length",
+                    max_length=512,
+                    truncation=True,
+                    return_attention_mask=True,
+                    add_special_tokens=True,
+                    return_tensors="pt",
+                  )
 
 def addTokenPositions(encodings, answers):
     startPositions = []
@@ -89,7 +115,7 @@ def addTokenPositions(encodings, answers):
 
 # Add token positions for our encodings given our answers for both the training and validation datasets
 # TODO: Add validation dataset here
-addTokenPositions(trainingEncodings, trainingAnswers)
+addTokenPositions(sourceEncodings, trainingAnswers)
 
 
 # Recommended class from documentation
@@ -106,7 +132,7 @@ class Data(torch.utils.data.Dataset):
 # Creating dictionary class for torch tensor values given the encodings
 trainingData = Data(trainingEncodings)
 
-model = T5ForConditionalGeneration.from_pretrained("distilbert-base-uncased")
+model = T5ForConditionalGeneration.from_pretrained(MODEL_NAME)
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 # move model over to detected device
