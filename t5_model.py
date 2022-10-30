@@ -50,7 +50,7 @@ def readData(path):
 
 # Grabbing the corresponding data in our desired format for training and validation datasets (validation not formatted yet)
 # TODO: Add validation data here
-trainingContexts, trainingQuestions, trainingAnswerObj, answerText, answerStart = readData('./data/train-v2.0.json')
+# trainingContexts, trainingQuestions, trainingAnswerObj, answerText, answerStart = readData('./data/train-v2.0.json')
 
 # Add end index
 def addEndIndex(answers, contexts):
@@ -75,18 +75,18 @@ def addEndIndex(answers, contexts):
         answer_end.append(endIndex)
     return answer_end
 
-endindex = addEndIndex(trainingAnswerObj, trainingContexts)
+# endindex = addEndIndex(trainingAnswerObj, trainingContexts)
 
-#to Dataframe
+# #to Dataframe
 
-train_data = pd.DataFrame({'context': trainingContexts,
-                           'question': trainingQuestions,
-                           'answer': answerText,
-                           'answer_start': answerStart,
-                           'answer_end': endindex},
-                          columns = ['context','question','answer', 'answer_start', 'answer_end'])
+# train_data = pd.DataFrame({'context': trainingContexts,
+#                            'question': trainingQuestions,
+#                            'answer': answerText,
+#                            'answer_start': answerStart,
+#                            'answer_end': endindex},
+#                           columns = ['context','question','answer', 'answer_start', 'answer_end'])
 
-train_data.drop_duplicates(subset=['question'], inplace=True)
+# train_data.drop_duplicates(subset=['question'], inplace=True)
 
 class SQUADDataset(Dataset):
     def __init__(self, data, tokenizer, source_max_token_len, target_max_token_len):
@@ -99,7 +99,7 @@ class SQUADDataset(Dataset):
         dataRow = self.data.iloc[idx]
         
 
-        sourceEncoding = tokenizer(
+        sourceEncoding = self.tokenizer(
                             dataRow['question'], 
                             dataRow['context'],  
                             padding="max_length",
@@ -110,7 +110,7 @@ class SQUADDataset(Dataset):
                             return_tensors="pt",
         )
 
-        answerEncoding = tokenizer(
+        answerEncoding = self.tokenizer(
                     dataRow['answer'],
                     padding="max_length",
                     max_length=self.target_max_token_len,
@@ -171,23 +171,23 @@ class SQUADModule(pl.LightningModule):
       return DataLoader(
           self.val_dataset,
           batch_size=1,
-          shuffle=True,
+          shuffle=False,
           num_workers=4
       )
 
-BATCH_SIZE = 8
-NUM_EPOCH = 6
+# BATCH_SIZE = 8
+# NUM_EPOCH = 6
 
-MODEL_NAME = 't5-base'
-tokenizer = T5Tokenizer.from_pretrained(MODEL_NAME)
+# MODEL_NAME = 't5-base'
+# tokenizer = T5Tokenizer.from_pretrained(MODEL_NAME)
 
-SQUADDataset(train_data, tokenizer, 512, 32)
+# SQUADDataset(train_data, tokenizer, 512, 32)
 
 class SQUADModel(pl.LightningModule):
     
     def __init__(self):
         super().__init__()
-        self.model = T5ForConditionalGeneration.from_pretrained(MODEL_NAME, return_dict = True)
+        self.model = T5ForConditionalGeneration.from_pretrained('t5-base', return_dict = True)
     
     def forward(self, input_ids, attention_mask, labels=None):
         output = self.model(
@@ -201,8 +201,7 @@ class SQUADModel(pl.LightningModule):
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
         labels = batch["labels"]
-        loss, outputs = self.forward(input_ids, attention_mask, labels)
-        print("LOG: ", input_ids, attention_mask, labels)
+        loss, outputs = self(input_ids, attention_mask, labels)
         self.log("train_loss", loss, prog_bar=True, logger=True)
         return loss
     
@@ -210,7 +209,7 @@ class SQUADModel(pl.LightningModule):
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
         labels = batch["labels"]
-        loss, outputs = self.forward(input_ids, attention_mask, labels)
+        loss, outputs = self(input_ids, attention_mask, labels)
         self.log("val_loss", loss, prog_bar=True, logger=True)
         return loss
     
@@ -218,30 +217,76 @@ class SQUADModel(pl.LightningModule):
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
         labels = batch["labels"]
-        loss, outputs = self.foward(input_ids, attention_mask, labels)
+        loss, outputs = self(input_ids, attention_mask, labels)
         self.log("test_loss", loss, prog_bar=True, logger=True)
         return loss
 
     def configure_optimizers(self):
        return AdamW(self.parameters(), lr = 0.001)
 
-dataModule = SQUADModule(train_data, train_data, tokenizer, batch_size=BATCH_SIZE)
-dataModule.setup()
-model = SQUADModel()
-sys.setrecursionlimit(10000)
+# dataModule = SQUADModule(train_data, train_data, tokenizer, batch_size=BATCH_SIZE)
+# dataModule.setup()
+# model = SQUADModel()
+# sys.setrecursionlimit(10000)
 
-checkpoint_callback = ModelCheckpoint(
-    filepath = 'checkpoints',
-    filename='checkpoint',
-    save_top_k=1,
-    verbose=True,
-    monitor='val_loss',
-    mode='min'
-    )
+# checkpoint_callback = ModelCheckpoint(
+#     filepath = 'checkpoints',
+#     filename='checkpoint',
+#     save_top_k=1,
+#     verbose=True,
+#     monitor='val_loss',
+#     mode='min'
+#     )
 
+# trainer = pl.Trainer(
+#     max_epochs=NUM_EPOCH, accelerator="gpu", devices=1
+#     )
 
-trainer = pl.Trainer(
-    max_epochs=NUM_EPOCH, accelerator="gpu", devices=1
-    )
+# trainer.fit(model, datamodule=dataModule)
 
-trainer.fit(model, datamodule=dataModule)
+def main():
+    torch.cuda.empty_cache()
+    trainingContexts, trainingQuestions, trainingAnswerObj, answerText, answerStart = readData('./data/train-v2.0.json')
+    endindex = addEndIndex(trainingAnswerObj, trainingContexts)
+
+    #to Dataframe
+
+    train_data = pd.DataFrame({'context': trainingContexts,
+                            'question': trainingQuestions,
+                            'answer': answerText,
+                            'answer_start': answerStart,
+                            'answer_end': endindex},
+                            columns = ['context','question','answer', 'answer_start', 'answer_end'])
+
+    train_data.drop_duplicates(subset=['question'], inplace=True)
+
+    BATCH_SIZE = 2
+    NUM_EPOCH = 6
+
+    MODEL_NAME = 't5-base'
+    tokenizer = T5Tokenizer.from_pretrained(MODEL_NAME)
+
+    SQUADDataset(train_data, tokenizer, 512, 32)
+
+    dataModule = SQUADModule(train_data, train_data, tokenizer, batch_size=BATCH_SIZE)
+    dataModule.setup()
+    model = SQUADModel()
+    sys.setrecursionlimit(10000)
+
+    checkpoint_callback = ModelCheckpoint(
+        filepath = 'checkpoints',
+        filename='checkpoint',
+        save_top_k=1,
+        verbose=True,
+        monitor='val_loss',
+        mode='min'
+        )
+
+    trainer = pl.Trainer(
+        max_epochs=NUM_EPOCH, accelerator="gpu", devices=1
+        )
+
+    trainer.fit(model, datamodule=dataModule)
+
+if __name__ == "__main__":
+    main()
