@@ -14,7 +14,12 @@ import spacy
 import re
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
+from transformers import DistilBertTokenizerFast, DistilBertForQuestionAnswering, pipeline
 
+model = DistilBertForQuestionAnswering.from_pretrained('./models/distilbert-wiki-qa/')
+tokenizer = DistilBertTokenizerFast.from_pretrained('./models/distilbert-wiki-qa/')
+
+model_pipeline = pipeline('question-answering', model=model, tokenizer=tokenizer)
 
 # verbose = True
 verbose = True
@@ -62,11 +67,16 @@ class tfidf_sim():
     cosine = self.Cosine(s_vectors.toarray(),q_vectors.toarray())
     sorted_index = cosine.argsort(axis=0)[::-1]
 
-    return sen_list, sorted_index
+    return sen_list, sorted_index, cosine
 
   def output(self, ques, text):
-    sen_list, sorted_index = self.similarity(ques, text)
+    sen_list, sorted_index, cosine = self.similarity(ques, text)
     answer_text = sen_list[sorted_index[0][0]]
+    if cosine < .009:
+      return model_pipeline({
+        "question": ques,
+        "context": text
+      })
     return answer_text
 
 '''
